@@ -1,0 +1,24 @@
+{
+  "name": "mcp-serpapi",
+  "transportType": "stdio",
+  "command": "uv",
+  "args": [
+    "run",
+    "--directory",
+    "/opt/mcp-serpapi",
+    "--frozen",
+    "--no-dev",
+    "src/stdio.py"
+  ],
+  "secretNames": ["apiKey"],
+  "secretFields": [
+    {
+      "name": "apiKey",
+      "label": "SerpApi API key",
+      "description": "Your SerpApi API key from https://serpapi.com/manage-api-key. Sent to serpapi.com with each search.",
+      "required": true,
+      "inputType": "password"
+    }
+  ],
+  "enabled": true
+}
