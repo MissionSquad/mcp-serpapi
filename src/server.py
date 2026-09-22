@@ -17,6 +17,7 @@ from fastmcp import FastMCP
 from fastmcp.server.providers import FileSystemProvider
 from mcp.types import Icon
 
+from src.hidden_args import HiddenArgsMiddleware, install_log_redaction
 from src.mcp_components.resources import complete_engine_name
 from src.version import __version__
 
@@ -41,8 +42,10 @@ mcp = FastMCP(
         "name to inspect its supported parameters."
     ),
     providers=[FileSystemProvider(COMPONENTS_DIR)],
+    middleware=[HiddenArgsMiddleware()],
 )
 mcp.completion(complete_engine_name)
+install_log_redaction()
 
 load_dotenv()
 

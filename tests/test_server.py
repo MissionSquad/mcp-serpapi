@@ -349,7 +349,9 @@ async def test_search_over_stdio_without_env_key_returns_graceful_error(monkeypa
     out = await mcp_tools.search(params={"q": "x"})
     assert out.is_error
     assert out.content[0].text == (
-        "Error: Missing API key. Set the SERPAPI_API_KEY environment variable."
+        "Error: Missing API key. Add your SerpApi API key to this server's secrets "
+        "in MissionSquad (secret name: apiKey), or set the SERPAPI_API_KEY "
+        "environment variable."
     )
 
 

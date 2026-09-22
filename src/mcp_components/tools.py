@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from typing import Any
 
 import serpapi
@@ -9,7 +10,12 @@ from fastmcp.tools import ToolResult, tool
 from mcp.types import InputRequiredResult, ToolAnnotations
 from serpapi.models import SerpResults
 
+from src.hidden_args import API_KEY_ARG, read_hidden_string
 from src.search_input import prepare_search_input
+
+# SerpApi takes the key as a query parameter, so transport errors raised before
+# a response (DNS, refused connection, connect timeout) quote it in the URL.
+_API_KEY_IN_URL = re.compile(r"(api_key=)[^&\s'\"()]+")
 
 
 def extract_error_response(exception) -> str:
@@ -63,15 +69,18 @@ def map_search_error(exception) -> str:
         if "401" in text:
             return (
                 "Error: Invalid SerpApi API key. "
-                "Check the key in the request path or Authorization header, "
-                "or in SERPAPI_API_KEY for stdio hosts."
+                "Check the apiKey secret configured for this server in MissionSquad, "
+                "the key in the request path or Authorization header, "
+                "or SERPAPI_API_KEY for local stdio hosts."
             )
         if "403" in text:
             return (
                 "Error: SerpApi API key forbidden. "
                 "Verify your subscription and key validity."
             )
-    return f"Error: {extract_error_response(exception)}"
+    return _API_KEY_IN_URL.sub(
+        r"\1[REDACTED]", f"Error: {extract_error_response(exception)}"
+    )
 
 
 def _text_result(content: str, *, is_error: bool = False) -> ToolResult:
@@ -242,15 +251,23 @@ async def search(
 def resolve_api_key() -> str:
     """Return the caller's SerpApi key, or raise naming the fix.
 
-    Over HTTP the key is the one ``ApiKeyMiddleware`` attached to the request.
-    Stdio hosts (the Claude Desktop bundle) have no request and use
-    ``SERPAPI_API_KEY`` instead; the hosted server never does.
+    A hidden ``apiKey`` injected into the tool call (MissionSquad) always wins.
+    Otherwise, over HTTP the key is the one ``ApiKeyMiddleware`` attached to the
+    request. Stdio hosts (the Claude Desktop bundle, local use) have no request
+    and use ``SERPAPI_API_KEY`` instead; the hosted server never does.
     """
+    api_key = read_hidden_string(API_KEY_ARG)
+    if api_key is not None:
+        return api_key
     try:
         request = get_http_request()
     except RuntimeError:  # no HTTP request: running over stdio
         api_key = os.getenv("SERPAPI_API_KEY")
-        hint = "Set the SERPAPI_API_KEY environment variable."
+        hint = (
+            "Add your SerpApi API key to this server's secrets in MissionSquad "
+            f"(secret name: {API_KEY_ARG}), "
+            "or set the SERPAPI_API_KEY environment variable."
+        )
     else:
         api_key = getattr(getattr(request, "state", None), "api_key", None)
         hint = (

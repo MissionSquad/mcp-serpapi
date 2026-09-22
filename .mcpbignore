@@ -38,4 +38,5 @@ Dockerfile
 server.json
 build-engines.py
 mcpb/
+missionsquad/
 .mcpbignore

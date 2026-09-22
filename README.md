@@ -121,6 +121,22 @@ curl "https://mcp.serpapi.com/your_key/mcp" -d '...'
 
 No key is needed to connect, list tools or read resources. `search` and the App tools need one and return an error without it.
 
+### MissionSquad (hidden API key)
+
+On [MissionSquad](https://missionsquad.ai), one server process is shared by many users, and each user's SerpApi key is injected into every tool call as a hidden argument, `apiKey`. It is not part of any tool's input schema, so the model never sees it or asks for it, and the key never appears in tool arguments the client sends.
+
+- **Hidden key**: `apiKey`, the user's SerpApi API key. Users save it once in MissionSquad; `mcp-api` stores it encrypted per user and per server and adds it to each call.
+- **How the server reads it**: [`src/hidden_args.py`](src/hidden_args.py) removes `apiKey` from the call before argument validation and makes it available to that call only. Concurrent calls from different users never see each other's key.
+- **Precedence** on every call:
+  1. hidden `apiKey`
+  2. over HTTP, the key from the `Authorization` header or `/{API_KEY}/mcp` path; over stdio, the `SERPAPI_API_KEY` environment variable
+  3. otherwise an error naming the fix
+- **Validation**: a hidden `apiKey` that is not a string, or is empty, is an error; it does not fall back to the environment.
+- **Local standalone use**: nothing changes. Run `src/stdio.py` with `SERPAPI_API_KEY` set, as in the MCP Bundle example above.
+- **Shared deployments**: leave `SERPAPI_API_KEY` unset (including in `.env`). Otherwise users who have not saved a key would search with the operator's key.
+- **Registration**: [`missionsquad/registration.json`](missionsquad/registration.json) is the `mcp-api` server definition, declaring `secretNames` and `secretFields`. Set the `--directory` argument to where the repository is deployed. The refactor design is in [`missionsquad/REFACTOR_GUIDE.md`](missionsquad/REFACTOR_GUIDE.md).
+- **Leak protection**: the key is sent to SerpApi only as the `api_key` query parameter. It is redacted from connection-error messages, and from FastMCP's DEBUG log of tool arguments. The server keeps no caches or background timers.
+
 ## Search Tool
 
 The MCP server has one main Search Tool that supports all SerpApi engines and result types. You can find all available parameters on the [SerpApi API reference](https://serpapi.com/search-api).
@@ -214,7 +230,7 @@ npx @modelcontextprotocol/inspector
 
 ## Troubleshooting
 
-- **"Missing API key"**: Include key in URL path `/{YOUR_KEY}/mcp` or header `Bearer YOUR_KEY`
+- **"Missing API key"**: Include key in URL path `/{YOUR_KEY}/mcp` or header `Bearer YOUR_KEY`; on MissionSquad, save your key in the server's `apiKey` secret; for local stdio, set `SERPAPI_API_KEY`
 - **"Invalid key"**: Verify at [serpapi.com/dashboard](https://serpapi.com/dashboard)  
 - **"Rate limit exceeded"**: Wait or upgrade your SerpApi plan
 - **"No results"**: Try different query or engine

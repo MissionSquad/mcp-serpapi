@@ -33,7 +33,14 @@ def test_mcpbignore_sits_at_project_root_and_drops_non_runtime_files():
         for line in (ROOT / ".mcpbignore").read_text(encoding="utf-8").splitlines()
         if line.strip() and not line.startswith("#")
     }
-    assert {"tests/", ".github/", "mcpb/", ".env", ".venv/"} <= patterns
+    assert {
+        "tests/",
+        ".github/",
+        "mcpb/",
+        "missionsquad/",
+        ".env",
+        ".venv/",
+    } <= patterns
 
 
 def test_manifest_uses_uv_runtime_and_launches_existing_entry_point():
